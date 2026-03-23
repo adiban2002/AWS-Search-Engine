@@ -7,5 +7,5 @@ router = APIRouter()
 def upload_file(file: UploadFile = File(...)):
     return {
         "filename": file.filename,
-        "message": "File uploaded successfully 🚀"
+        "message": "File uploaded successfully"
     }

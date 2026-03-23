@@ -1,19 +1,18 @@
-from openai import OpenAI
+import google.generativeai as genai
 import os
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+model = genai.GenerativeModel("gemini-1.5-flash")  
+
 
 class RAGService:
 
     @staticmethod
     def retrieve_context(query: str):
-        """
-        TEMP: Replace this later with OpenSearch retrieval
-        """
-        # Placeholder context (later: vector DB search)
         return [
-            "Cloud computing allows scalable resources over the internet.",
-            "AWS provides services like EC2, S3, and Lambda."
+            "AWS (Amazon Web Services) is a cloud platform offering scalable services.",
+            "It provides services like EC2 for compute, S3 for storage, and Lambda for serverless."
         ]
 
     @staticmethod
@@ -22,27 +21,22 @@ class RAGService:
             context_text = "\n".join(context)
 
             prompt = f"""
-            You are an intelligent AI assistant.
+You are a helpful AI assistant.
 
-            Context:
-            {context_text}
+Use the context below to answer the question.
 
-            Question:
-            {query}
+Context:
+{context_text}
 
-            Answer clearly using the context.
-            """
+Question:
+{query}
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a helpful AI assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3
-            )
+Answer clearly and concisely.
+"""
 
-            return response.choices[0].message.content
+            response = model.generate_content(prompt)
+
+            return response.text if response.text else "No response generated"
 
         except Exception as e:
             print(f"[RAG Error]: {e}")

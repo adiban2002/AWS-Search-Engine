@@ -1,5 +1,5 @@
-from app.services.embedding_service import EmbeddingService
-from app.services.rag_service import RAGService
+from backend.app.services.embedding_service import EmbeddingService
+from backend.app.services.rag_service import RAGService
 
 
 class SearchService:
@@ -7,13 +7,15 @@ class SearchService:
     @staticmethod
     def search(query: str):
         try:
+            if not query:
+                return {"error": "Query cannot be empty"}
+
             embedding = EmbeddingService.get_embedding(query)
 
-            if embedding is None:
-                return {"error": "Embedding failed"}
 
             context = RAGService.retrieve_context(query)
 
+            
             answer = RAGService.generate_answer(query, context)
 
             return {
