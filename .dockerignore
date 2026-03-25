@@ -1,6 +1,3 @@
-.git
-.gitignore
-
 __pycache__/
 *.pyc
 *.pyo
@@ -10,22 +7,23 @@ venv/
 env/
 ENV/
 
-
 .env
 .env.*
 
 *.log
 logs/
 
-tests/
+.git
+.gitignore
 
 data/documents/
 data/processed/
 
-
 .vscode/
 .idea/
 
+.DS_Store
+Thumbs.db
 
 docker-compose.override.yml
 
