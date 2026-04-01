@@ -1,5 +1,3 @@
-
-
 import pytest
 from llmops.embeddings.generate_embeddings import EmbeddingGenerator
 from llmops.vector_db.vector_store import OpenSearchVectorStore
@@ -7,7 +5,15 @@ from llmops.vector_db.vector_store import OpenSearchVectorStore
 
 @pytest.fixture(scope="module")
 def vector_store():
-    return OpenSearchVectorStore()
+    store = OpenSearchVectorStore()
+
+    try:
+        if store.client.indices.exists(index=store.index_name):
+            store.client.indices.delete(index=store.index_name)
+    except Exception:
+        pass
+
+    return store
 
 
 def test_embedding_generation():
@@ -32,9 +38,22 @@ def test_index_and_search(vector_store):
     )
 
     assert response is not None
+    assert "_id" in response
 
     results = vector_store.search(embedding, k=2)
 
     assert isinstance(results, list)
     assert len(results) > 0
-    assert any("AWS" in (res.get("text") or "") for res in results)
+
+    top_result = results[0]
+
+    assert "text" in top_result
+    assert "score" in top_result
+
+    assert isinstance(top_result["text"], str)
+    assert top_result["score"] is not None
+
+    assert any(
+        "AWS" in (res.get("text") or "")
+        for res in results
+    )

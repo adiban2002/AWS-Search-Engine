@@ -1,6 +1,3 @@
-# =========================
-# Python
-# =========================
 __pycache__/
 *.py[cod]
 *.pyo
@@ -12,73 +9,52 @@ dist/
 build/
 *.log
 
-# =========================
-# Virtual Environment
-# =========================
 venv/
 env/
 ENV/
+.venv/
 
-# =========================
-# Environment Variables
-# =========================
 .env
 .env.*
 *.env
 
-# =========================
-# VS Code / IDE
-# =========================
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# =========================
-# OS Files
-# =========================
 .DS_Store
 Thumbs.db
 
-# =========================
-# Docker
-# =========================
 *.tar
 docker-compose.override.yml
 
-# =========================
-# Data Files (IMPORTANT)
-# =========================
 data/documents/*
 data/processed/*
 
-# Keep folder but ignore contents
 !data/documents/.gitkeep
 !data/processed/.gitkeep
 
-# =========================
-# Logs
-# =========================
 logs/
 *.log
 
-# =========================
-# Testing / Coverage
-# =========================
 .coverage
 htmlcov/
 .pytest_cache/
 
-# =========================
-# Node (frontend if used)
-# =========================
 node_modules/
 npm-debug.log*
 yarn-error.log*
 
-# =========================
-# AWS / Credentials Safety
-# =========================
 *.pem
 *.key
 credentials.json
+*.crt
+
+*.csv
+*.parquet
+*.db
+
+*.bak
+*.tmp
+*.cache
