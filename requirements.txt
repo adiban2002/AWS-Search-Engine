@@ -7,3 +7,4 @@ python-multipart==0.0.22
 opensearch-py
 tenacity
 pytest
+boto3

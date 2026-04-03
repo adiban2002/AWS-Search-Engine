@@ -1,79 +1,122 @@
-import os
 import logging
-from typing import List
+from typing import List, Dict, Any
 
+from data.s3_loader import S3DocumentLoader
 from llmops.embeddings.generate_embeddings import EmbeddingGenerator
 from llmops.vector_db.vector_store import OpenSearchVectorStore
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
-class DataIngestionPipeline:
+class IngestionPipeline:
 
-    def __init__(self, data_dir: str = "data/documents", chunk_size: int = 500):
-        self.data_dir = data_dir
-        self.chunk_size = chunk_size
+
+    def __init__(
+        self,
+        chunk_size: int = 500,
+        chunk_overlap: int = 50,
+        prefix: str = "documents/"
+    ):
+        self.loader = S3DocumentLoader()
         self.vector_store = OpenSearchVectorStore()
 
-
-    def _load_documents(self) -> List[str]:
-        documents = []
-
-        for filename in os.listdir(self.data_dir):
-            if not filename.endswith(".txt"):
-                continue
-
-            filepath = os.path.join(self.data_dir, filename)
-
-            with open(filepath, "r", encoding="utf-8") as f:
-                content = f.read()
-
-                if content.strip():
-                    documents.append(content)
-
-        logger.info(f"Loaded {len(documents)} documents")
-        return documents
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        self.prefix = prefix
 
 
     def _chunk_text(self, text: str) -> List[str]:
         chunks = []
-
         start = 0
-        while start < len(text):
-            chunk = text[start:start + self.chunk_size].strip()
-            if chunk:
+        text_length = len(text)
+
+        while start < text_length:
+            end = start + self.chunk_size
+            chunk = text[start:end]
+
+            if chunk.strip():
                 chunks.append(chunk)
-            start += self.chunk_size
+
+            start += self.chunk_size - self.chunk_overlap
 
         return chunks
 
-    def run(self):
-        documents = self._load_documents()
 
-        total_chunks = 0
+    def _process_documents(self, docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        processed_chunks = []
 
-        for doc in documents:
-            chunks = self._chunk_text(doc)
+        for doc in docs:
+            text = doc.get("text", "")
+            metadata = doc.get("metadata", {})
 
-            for chunk in chunks:
-                try:
-                    embedding = EmbeddingGenerator.generate_embedding(chunk)
+            chunks = self._chunk_text(text)
 
-                    self.vector_store.index_document(
-                        text=chunk,
-                        embedding=embedding,
-                        metadata={"source": "ingested"}
-                    )
+            for idx, chunk in enumerate(chunks):
+                processed_chunks.append({
+                    "text": chunk,
+                    "metadata": {
+                        **metadata,
+                        "chunk_id": idx
+                    }
+                })
 
-                    total_chunks += 1
+        logger.info(f"Total chunks created: {len(processed_chunks)}")
 
-                except Exception as e:
-                    logger.error(f"[Chunk Error]: {e}", exc_info=True)
-
-        logger.info(f"Total chunks indexed: {total_chunks}")
+        return processed_chunks
 
 
-if __name__ == "__main__":
-    pipeline = DataIngestionPipeline()
-    pipeline.run()
+    def _index_chunks(self, chunks: List[Dict[str, Any]]) -> int:
+        success_count = 0
+
+        for chunk in chunks:
+            try:
+                embedding = EmbeddingGenerator.generate_embedding(chunk["text"])
+
+                self.vector_store.index_document(
+                    text=chunk["text"],
+                    embedding=embedding,
+                    metadata=chunk["metadata"]
+                )
+
+                success_count += 1
+
+            except Exception as e:
+                logger.error(f"[Chunk Index Error]: {e}", exc_info=True)
+
+        return success_count
+
+
+    def run(self) -> Dict[str, Any]:
+        try:
+            logger.info("Starting ingestion pipeline...")
+
+            
+            documents = self.loader.load_documents(prefix=self.prefix)
+
+            if not documents:
+                raise ValueError("No documents found in S3")
+
+            logger.info(f"Loaded {len(documents)} documents")
+
+           
+            chunks = self._process_documents(documents)
+
+            if not chunks:
+                raise ValueError("No chunks created")
+
+            
+            indexed_count = self._index_chunks(chunks)
+
+            logger.info(f"Successfully indexed {indexed_count} chunks")
+
+            return {
+                "status": "success",
+                "documents": len(documents),
+                "chunks": len(chunks),
+                "indexed": indexed_count
+            }
+
+        except Exception as e:
+            logger.error(f"[Ingestion Pipeline Error]: {e}", exc_info=True)
+            raise
