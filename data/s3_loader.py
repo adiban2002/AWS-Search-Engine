@@ -21,7 +21,6 @@ class S3DocumentLoader:
         if not self.bucket_name:
             raise ValueError("Missing S3_BUCKET_NAME")
 
-        # 🔥 FORCE ENV CREDENTIALS (NO ~/.aws CONFUSION)
         self.client = boto3.client(
             "s3",
             region_name=self.region,
@@ -31,9 +30,7 @@ class S3DocumentLoader:
 
         logger.info(f"S3 client initialized for bucket: {self.bucket_name}")
 
-    # -----------------------------
-    # 🔹 LIST FILES
-    # -----------------------------
+
     def list_files(self, prefix: str = "") -> List[str]:
         try:
             response = self.client.list_objects_v2(
@@ -57,9 +54,7 @@ class S3DocumentLoader:
             logger.error(f"[S3 List Error]: {e}", exc_info=True)
             raise
 
-    # -----------------------------
-    # 🔹 READ FILE
-    # -----------------------------
+
     def read_file(self, key: str) -> str:
         try:
             response = self.client.get_object(
@@ -78,9 +73,7 @@ class S3DocumentLoader:
             logger.error(f"[S3 Read Error]: {e}", exc_info=True)
             raise
 
-    # -----------------------------
-    # 🔹 LOAD DOCUMENTS
-    # -----------------------------
+
     def load_documents(self, prefix: str = "") -> List[Dict[str, Any]]:
         try:
             files = self.list_files(prefix)

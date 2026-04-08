@@ -37,38 +37,32 @@ class RetrievalPipeline:
         self.max_context_chars = max_context_chars
         self.model_name = model_name
 
-    # -----------------------------
-    # 🔹 EMBEDDING
-    # -----------------------------
+ 
     def _embed_query(self, query: str) -> List[float]:
         if not query or not query.strip():
             raise ValueError("Query cannot be empty")
 
         return EmbeddingGenerator.generate_embedding(query)
 
-    # -----------------------------
-    # 🔹 RETRIEVAL (FILTER + SORT)
-    # -----------------------------
+
     def _retrieve(self, embedding: List[float]) -> List[Dict[str, Any]]:
         results = self.vector_store.search(embedding, k=self.top_k)
 
         if not results:
             logger.warning("No documents retrieved")
 
-        # 🔥 Filter low-quality results
+       
         filtered = [
             r for r in results
             if (r.get("score") or 0) >= self.min_score
         ]
 
-        # 🔥 Sort best first
+       
         filtered.sort(key=lambda x: x.get("score", 0), reverse=True)
 
         return filtered
 
-    # -----------------------------
-    # 🔹 CONTEXT BUILDING
-    # -----------------------------
+
     def _build_context(self, docs: List[Dict[str, Any]]) -> str:
         context_parts = []
         total_length = 0
@@ -92,9 +86,7 @@ class RetrievalPipeline:
 
         return context
 
-    # -----------------------------
-    # 🔥 LLM CALL WITH RETRY
-    # -----------------------------
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=5))
     def _generate_answer(self, query: str, context: str) -> str:
 
@@ -132,9 +124,7 @@ Answer:
             logger.error(f"[LLM Error]: {e}", exc_info=True)
             raise
 
-    # -----------------------------
-    # 🔹 MAIN PIPELINE
-    # -----------------------------
+
     def run(self, query: str) -> Dict[str, Any]:
         try:
             embedding = self._embed_query(query)

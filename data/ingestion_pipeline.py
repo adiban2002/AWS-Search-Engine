@@ -11,10 +11,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 class IngestionPipeline:
-    """
-    Production-grade ingestion:
-    S3 → Semantic Chunking → Embedding → OpenSearch
-    """
+
 
     def __init__(
         self,
@@ -29,9 +26,7 @@ class IngestionPipeline:
         self.chunk_overlap = chunk_overlap
         self.prefix = prefix
 
-    # -----------------------------
-    # 🔥 SMART SENTENCE CHUNKING
-    # -----------------------------
+
     def _split_sentences(self, text: str) -> List[str]:
         sentences = re.split(r'(?<=[.!?])\s+', text.strip())
         return [s.strip() for s in sentences if s.strip()]
@@ -48,7 +43,7 @@ class IngestionPipeline:
             else:
                 chunks.append(current_chunk.strip())
 
-                # overlap handling
+                
                 overlap_text = current_chunk[-self.chunk_overlap:]
                 current_chunk = overlap_text + " " + sentence
 
@@ -57,7 +52,7 @@ class IngestionPipeline:
 
         return chunks
 
-    # -----------------------------
+   
     def _process_documents(self, docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         processed = []
 
@@ -79,7 +74,7 @@ class IngestionPipeline:
         logger.info(f"Total chunks created: {len(processed)}")
         return processed
 
-    # -----------------------------
+    
     def _index_chunks(self, chunks: List[Dict[str, Any]]) -> int:
         success = 0
 
@@ -100,7 +95,7 @@ class IngestionPipeline:
 
         return success
 
-    # -----------------------------
+   
     def run(self) -> Dict[str, Any]:
         logger.info("Starting ingestion pipeline...")
 
