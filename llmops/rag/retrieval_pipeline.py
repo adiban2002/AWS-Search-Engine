@@ -3,6 +3,8 @@ from typing import List, Dict, Any, Optional
 from google import genai
 import os
 
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from llmops.embeddings.generate_embeddings import EmbeddingGenerator
 from llmops.vector_db.vector_store import OpenSearchVectorStore
 
@@ -13,49 +15,66 @@ API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 if not API_KEY:
     raise ValueError("Missing Gemini API Key")
 
-genai_client = genai.Client(api_key=API_KEY)
+client = genai.Client(api_key=API_KEY)
 
 
 class RetrievalPipeline:
+    """
+    Production-grade RAG pipeline
+    """
 
     def __init__(
         self,
         vector_store: Optional[OpenSearchVectorStore] = None,
         top_k: int = 5,
-        max_context_chars: int = 4000,
+        min_score: float = 0.4,
+        max_context_chars: int = 3000,
         model_name: str = "gemini-2.5-flash"
     ):
         self.vector_store = vector_store or OpenSearchVectorStore()
         self.top_k = top_k
+        self.min_score = min_score
         self.max_context_chars = max_context_chars
         self.model_name = model_name
 
+    # -----------------------------
+    # 🔹 EMBEDDING
+    # -----------------------------
     def _embed_query(self, query: str) -> List[float]:
         if not query or not query.strip():
             raise ValueError("Query cannot be empty")
 
         return EmbeddingGenerator.generate_embedding(query)
 
+    # -----------------------------
+    # 🔹 RETRIEVAL (FILTER + SORT)
+    # -----------------------------
     def _retrieve(self, embedding: List[float]) -> List[Dict[str, Any]]:
         results = self.vector_store.search(embedding, k=self.top_k)
 
         if not results:
             logger.warning("No documents retrieved")
 
-        return results
+        # 🔥 Filter low-quality results
+        filtered = [
+            r for r in results
+            if (r.get("score") or 0) >= self.min_score
+        ]
 
+        # 🔥 Sort best first
+        filtered.sort(key=lambda x: x.get("score", 0), reverse=True)
+
+        return filtered
+
+    # -----------------------------
+    # 🔹 CONTEXT BUILDING
+    # -----------------------------
     def _build_context(self, docs: List[Dict[str, Any]]) -> str:
-
-        if not docs:
-            return ""
-
-        docs = sorted(docs, key=lambda x: x.get("score", 0), reverse=True)
-
         context_parts = []
         total_length = 0
 
         for doc in docs:
-            text = (doc.get("text") or "").strip()
+            text = doc.get("text", "").strip()
 
             if not text:
                 continue
@@ -69,22 +88,28 @@ class RetrievalPipeline:
         context = "\n\n".join(context_parts)
 
         if not context:
-            logger.warning("Context is empty after processing")
+            logger.warning("Empty context generated")
 
         return context
 
+    # -----------------------------
+    # 🔥 LLM CALL WITH RETRY
+    # -----------------------------
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=5))
     def _generate_answer(self, query: str, context: str) -> str:
 
         prompt = f"""
-You are an intelligent AI assistant.
+You are a highly intelligent AI assistant.
 
-Instructions:
-- Use ONLY the provided context
-- If answer is not present, say: "I don't have enough information"
-- Keep answer clear, concise, and structured
+Rules:
+- Answer ONLY from the provided context
+- If the answer is not present, say: "I don't have enough information"
+- Keep answer clear, structured, and concise
 
+---------------------
 Context:
 {context}
+---------------------
 
 Question:
 {query}
@@ -93,19 +118,24 @@ Answer:
 """
 
         try:
-            response = genai_client.models.generate_content(
+            response = client.models.generate_content(
                 model=self.model_name,
                 contents=prompt
             )
 
-            return (response.text or "").strip()
+            if not response.text:
+                raise ValueError("Empty response from LLM")
+
+            return response.text.strip()
 
         except Exception as e:
             logger.error(f"[LLM Error]: {e}", exc_info=True)
             raise
 
+    # -----------------------------
+    # 🔹 MAIN PIPELINE
+    # -----------------------------
     def run(self, query: str) -> Dict[str, Any]:
-
         try:
             embedding = self._embed_query(query)
 
@@ -114,20 +144,11 @@ Answer:
             if not documents:
                 return {
                     "query": query,
-                    "answer": "I couldn't find relevant information in the database.",
-                    "documents": [],
-                    "context_used": ""
+                    "answer": "No relevant information found",
+                    "documents": []
                 }
 
             context = self._build_context(documents)
-
-            if not context:
-                return {
-                    "query": query,
-                    "answer": "I couldn't build enough context to answer the question.",
-                    "documents": documents,
-                    "context_used": ""
-                }
 
             answer = self._generate_answer(query, context)
 
@@ -140,4 +161,9 @@ Answer:
 
         except Exception as e:
             logger.error(f"[RAG Pipeline Error]: {e}", exc_info=True)
-            raise
+
+            return {
+                "query": query,
+                "answer": "Temporary issue with AI model. Please try again.",
+                "documents": []
+            }
