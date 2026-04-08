@@ -12,96 +12,63 @@ logger = logging.getLogger(__name__)
 
 API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 
-if not API_KEY:
-    raise ValueError("Missing Gemini API Key")
-
 client = genai.Client(api_key=API_KEY)
 
 
 class RetrievalPipeline:
-    """
-    Production-grade RAG pipeline
-    """
 
-    def __init__(
-        self,
-        vector_store: Optional[OpenSearchVectorStore] = None,
-        top_k: int = 5,
-        min_score: float = 0.4,
-        max_context_chars: int = 3000,
-        model_name: str = "gemini-2.5-flash"
-    ):
+    def __init__(self, vector_store=None, top_k=5, min_score=0.4, max_context_chars=2500):
         self.vector_store = vector_store or OpenSearchVectorStore()
         self.top_k = top_k
         self.min_score = min_score
         self.max_context_chars = max_context_chars
-        self.model_name = model_name
+        self.model = "gemini-2.5-flash"
 
- 
-    def _embed_query(self, query: str) -> List[float]:
-        if not query or not query.strip():
-            raise ValueError("Query cannot be empty")
-
+    def _embed_query(self, query: str):
         return EmbeddingGenerator.generate_embedding(query)
 
-
-    def _retrieve(self, embedding: List[float]) -> List[Dict[str, Any]]:
+    def _retrieve(self, embedding):
         results = self.vector_store.search(embedding, k=self.top_k)
 
-        if not results:
-            logger.warning("No documents retrieved")
-
        
-        filtered = [
-            r for r in results
-            if (r.get("score") or 0) >= self.min_score
-        ]
+        results = [r for r in results if (r.get("score") or 0) >= self.min_score]
 
-       
-        filtered.sort(key=lambda x: x.get("score", 0), reverse=True)
+        
+        results.sort(key=lambda x: x.get("score", 0), reverse=True)
 
-        return filtered
+        
+        seen = set()
+        unique = []
+        for r in results:
+            if r["text"] not in seen:
+                unique.append(r)
+                seen.add(r["text"])
 
+        return unique
 
-    def _build_context(self, docs: List[Dict[str, Any]]) -> str:
-        context_parts = []
-        total_length = 0
+    def _build_context(self, docs):
+        context = ""
+        total = 0
 
         for doc in docs:
-            text = doc.get("text", "").strip()
+            text = doc["text"]
 
-            if not text:
-                continue
-
-            if total_length + len(text) > self.max_context_chars:
+            if total + len(text) > self.max_context_chars:
                 break
 
-            context_parts.append(text)
-            total_length += len(text)
+            context += text + "\n\n"
+            total += len(text)
 
-        context = "\n\n".join(context_parts)
-
-        if not context:
-            logger.warning("Empty context generated")
-
-        return context
-
+        return context.strip()
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=5))
-    def _generate_answer(self, query: str, context: str) -> str:
-
+    def _generate(self, query, context):
         prompt = f"""
-You are a highly intelligent AI assistant.
+Answer ONLY from context.
+If not found, say: "I don't have enough information."
 
-Rules:
-- Answer ONLY from the provided context
-- If the answer is not present, say: "I don't have enough information"
-- Keep answer clear, structured, and concise
-
----------------------
 Context:
 {context}
----------------------
 
 Question:
 {query}
@@ -109,51 +76,37 @@ Question:
 Answer:
 """
 
+        response = client.models.generate_content(
+            model=self.model,
+            contents=prompt
+        )
+
+        return response.text.strip()
+
+    def run(self, query: str):
         try:
-            response = client.models.generate_content(
-                model=self.model_name,
-                contents=prompt
-            )
+            emb = self._embed_query(query)
 
-            if not response.text:
-                raise ValueError("Empty response from LLM")
+            docs = self._retrieve(emb)
 
-            return response.text.strip()
+            if not docs:
+                return {"query": query, "answer": "No relevant info", "documents": []}
 
-        except Exception as e:
-            logger.error(f"[LLM Error]: {e}", exc_info=True)
-            raise
+            context = self._build_context(docs)
 
-
-    def run(self, query: str) -> Dict[str, Any]:
-        try:
-            embedding = self._embed_query(query)
-
-            documents = self._retrieve(embedding)
-
-            if not documents:
-                return {
-                    "query": query,
-                    "answer": "No relevant information found",
-                    "documents": []
-                }
-
-            context = self._build_context(documents)
-
-            answer = self._generate_answer(query, context)
+            answer = self._generate(query, context)
 
             return {
                 "query": query,
                 "answer": answer,
-                "documents": documents,
+                "documents": docs,
                 "context_used": context
             }
 
         except Exception as e:
-            logger.error(f"[RAG Pipeline Error]: {e}", exc_info=True)
-
+            logger.error(f"[RAG Error]: {e}")
             return {
                 "query": query,
-                "answer": "Temporary issue with AI model. Please try again.",
+                "answer": "Temporary issue, try again",
                 "documents": []
             }

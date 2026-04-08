@@ -12,13 +12,7 @@ logging.basicConfig(level=logging.INFO)
 
 class IngestionPipeline:
 
-
-    def __init__(
-        self,
-        chunk_size: int = 800,
-        chunk_overlap: int = 100,
-        prefix: str = "documents/"
-    ):
+    def __init__(self, chunk_size=800, chunk_overlap=100, prefix="documents/"):
         self.loader = S3DocumentLoader()
         self.vector_store = OpenSearchVectorStore()
 
@@ -26,39 +20,42 @@ class IngestionPipeline:
         self.chunk_overlap = chunk_overlap
         self.prefix = prefix
 
-
+ 
     def _split_sentences(self, text: str) -> List[str]:
         sentences = re.split(r'(?<=[.!?])\s+', text.strip())
         return [s.strip() for s in sentences if s.strip()]
 
+   
     def _chunk_text(self, text: str) -> List[str]:
         sentences = self._split_sentences(text)
 
         chunks = []
-        current_chunk = ""
+        current = ""
 
         for sentence in sentences:
-            if len(current_chunk) + len(sentence) <= self.chunk_size:
-                current_chunk += " " + sentence
+            if len(current) + len(sentence) <= self.chunk_size:
+                current += " " + sentence
             else:
-                chunks.append(current_chunk.strip())
+                chunks.append(current.strip())
 
-                
-                overlap_text = current_chunk[-self.chunk_overlap:]
-                current_chunk = overlap_text + " " + sentence
+               
+                overlap = current[-self.chunk_overlap:]
+                current = overlap + " " + sentence
 
-        if current_chunk.strip():
-            chunks.append(current_chunk.strip())
+        if current.strip():
+            chunks.append(current.strip())
 
-        return chunks
+        
+        unique_chunks = list(dict.fromkeys(chunks))
 
-   
+        return unique_chunks
+
     def _process_documents(self, docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         processed = []
 
         for doc in docs:
-            text = doc.get("text", "")
-            metadata = doc.get("metadata", {})
+            text = doc["text"]
+            metadata = doc["metadata"]
 
             chunks = self._chunk_text(text)
 
@@ -71,10 +68,9 @@ class IngestionPipeline:
                     }
                 })
 
-        logger.info(f"Total chunks created: {len(processed)}")
+        logger.info(f"Chunks created: {len(processed)}")
         return processed
 
-    
     def _index_chunks(self, chunks: List[Dict[str, Any]]) -> int:
         success = 0
 
@@ -91,20 +87,17 @@ class IngestionPipeline:
                 success += 1
 
             except Exception as e:
-                logger.error(f"[Index Error]: {e}", exc_info=True)
+                logger.error(f"[Index Error]: {e}")
 
         return success
 
-   
-    def run(self) -> Dict[str, Any]:
-        logger.info("Starting ingestion pipeline...")
+    def run(self):
+        logger.info("Starting ingestion...")
 
         docs = self.loader.load_documents(prefix=self.prefix)
 
         if not docs:
-            raise ValueError("No documents found in S3")
-
-        logger.info(f"Loaded {len(docs)} documents")
+            raise ValueError("No documents found")
 
         chunks = self._process_documents(docs)
 
