@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 
 class IngestionPipeline:
 
-    def __init__(self, chunk_size=800, chunk_overlap=100, prefix="documents/"):
+    def __init__(self, chunk_size=700, chunk_overlap=80, prefix="documents/"):
         self.loader = S3DocumentLoader()
         self.vector_store = OpenSearchVectorStore()
 
@@ -20,12 +20,12 @@ class IngestionPipeline:
         self.chunk_overlap = chunk_overlap
         self.prefix = prefix
 
- 
+    
     def _split_sentences(self, text: str) -> List[str]:
-        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
-        return [s.strip() for s in sentences if s.strip()]
+        sentences = re.split(r'(?<=[.!?])\s+|\n+', text.strip())
+        return [s.strip() for s in sentences if len(s.strip()) > 20]
 
-   
+    
     def _chunk_text(self, text: str) -> List[str]:
         sentences = self._split_sentences(text)
 
@@ -36,17 +36,25 @@ class IngestionPipeline:
             if len(current) + len(sentence) <= self.chunk_size:
                 current += " " + sentence
             else:
-                chunks.append(current.strip())
+                if current.strip():
+                    chunks.append(current.strip())
 
                
-                overlap = current[-self.chunk_overlap:]
+                overlap = current[-self.chunk_overlap:] if current else ""
                 current = overlap + " " + sentence
 
         if current.strip():
             chunks.append(current.strip())
 
-        
-        unique_chunks = list(dict.fromkeys(chunks))
+      
+        unique_chunks = []
+        seen = set()
+
+        for chunk in chunks:
+            key = chunk[:200]  
+            if key not in seen:
+                seen.add(key)
+                unique_chunks.append(chunk)
 
         return unique_chunks
 

@@ -11,13 +11,12 @@ from llmops.vector_db.vector_store import OpenSearchVectorStore
 logger = logging.getLogger(__name__)
 
 API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
-
 client = genai.Client(api_key=API_KEY)
 
 
 class RetrievalPipeline:
 
-    def __init__(self, vector_store=None, top_k=5, min_score=0.4, max_context_chars=2500):
+    def __init__(self, vector_store=None, top_k=6, min_score=0.45, max_context_chars=2200):
         self.vector_store = vector_store or OpenSearchVectorStore()
         self.top_k = top_k
         self.min_score = min_score
@@ -33,21 +32,29 @@ class RetrievalPipeline:
        
         results = [r for r in results if (r.get("score") or 0) >= self.min_score]
 
-        
+       
         results.sort(key=lambda x: x.get("score", 0), reverse=True)
 
         
         seen = set()
-        unique = []
-        for r in results:
-            if r["text"] not in seen:
-                unique.append(r)
-                seen.add(r["text"])
+        clean = []
 
-        return unique
+        for r in results:
+            text = r["text"].strip()
+
+            if len(text) < 50:
+                continue
+
+            key = text[:150]
+
+            if key not in seen:
+                seen.add(key)
+                clean.append(r)
+
+        return clean
 
     def _build_context(self, docs):
-        context = ""
+        context_parts = []
         total = 0
 
         for doc in docs:
@@ -56,15 +63,20 @@ class RetrievalPipeline:
             if total + len(text) > self.max_context_chars:
                 break
 
-            context += text + "\n\n"
+            context_parts.append(text)
             total += len(text)
 
-        return context.strip()
+        return "\n\n".join(context_parts)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=5))
     def _generate(self, query, context):
+
         prompt = f"""
-Answer ONLY from context.
+You are an expert AI assistant.
+
+Answer ONLY from the context.
+Do NOT include irrelevant details.
+
 If not found, say: "I don't have enough information."
 
 Context:
@@ -90,7 +102,11 @@ Answer:
             docs = self._retrieve(emb)
 
             if not docs:
-                return {"query": query, "answer": "No relevant info", "documents": []}
+                return {
+                    "query": query,
+                    "answer": "No relevant information found",
+                    "documents": []
+                }
 
             context = self._build_context(docs)
 
@@ -105,8 +121,9 @@ Answer:
 
         except Exception as e:
             logger.error(f"[RAG Error]: {e}")
+
             return {
                 "query": query,
-                "answer": "Temporary issue, try again",
+                "answer": "Temporary issue, try again later",
                 "documents": []
             }
