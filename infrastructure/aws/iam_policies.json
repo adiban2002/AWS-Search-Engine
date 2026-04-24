@@ -1,0 +1,42 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "S3AccessForSearchEngine",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:DeleteObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::ai-search-engine-storage",
+                "arn:aws:s3:::ai-search-engine-storage/*"
+            ]
+        },
+        {
+            "Sid": "OpenSearchAccessForLLMOps",
+            "Effect": "Allow",
+            "Action": [
+                "es:ESHttpGet",
+                "es:ESHttpPut",
+                "es:ESHttpPost",
+                "es:ESHttpHead",
+                "es:DescribeDomain",
+                "es:ESHttpPatch"
+            ],
+            "Resource": "arn:aws:es:ap-south-1:800557028391:domain/llmops-domain/*"
+        },
+        {
+            "Sid": "CloudWatchLogging",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:ap-south-1:800557028391:log-group:/aws/eks/*"
+        }
+    ]
+}

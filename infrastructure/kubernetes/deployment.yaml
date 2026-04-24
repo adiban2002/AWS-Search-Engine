@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-search-engine-deployment
+  labels:
+    app: ai-search-engine
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-search-engine
+  template:
+    metadata:
+      labels:
+        app: ai-search-engine
+    spec:
+      serviceAccountName: ai-search-sa 
+      containers:
+      - name: llm-backend
+        image: 800557028391.dkr.ecr.ap-south-1.amazonaws.com/ai-search-backend:latest
+        ports:
+        - containerPort: 8002 
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        env:
+        - name: PORT
+          value: "8002"
+        - name: AWS_REGION
+          value: "ap-south-1"
+        - name: GEMINI_API_KEY   
+          valueFrom:
+            secretKeyRef:
+              name: ai-search-secrets
+              key: GEMINI_API_KEY
