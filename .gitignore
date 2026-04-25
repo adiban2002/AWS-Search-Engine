@@ -58,3 +58,11 @@ credentials.json
 *.bak
 *.tmp
 *.cache
+
+.cloudflared/
+cert.pem
+*.json
+
+.aws/
+config.yaml
+config.yml
