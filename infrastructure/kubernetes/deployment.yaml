@@ -32,6 +32,14 @@ spec:
           value: "8002"
         - name: AWS_REGION
           value: "ap-south-1"
+        - name: OPENSEARCH_HOST
+          value: "search-llmops-domain-bfry7rfipszsjzmbtnlf52wx7m.aos.ap-south-1.on.aws"
+        - name: OPENSEARCH_USERNAME
+          value: "admin"
+        - name: OPENSEARCH_PASSWORD
+          value: "Admin@2026"
+        - name: OPENSEARCH_INDEX
+          value: "llmops-index"
         - name: GEMINI_API_KEY   
           valueFrom:
             secretKeyRef:
