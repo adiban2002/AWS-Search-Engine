@@ -8,3 +8,7 @@ opensearch-py
 tenacity
 pytest
 boto3
+langchain==1.2.15
+langchain-google-genai==4.2.2
+langchain-community==0.4.1
+langchain-text-splitters==1.1.2
