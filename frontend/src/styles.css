@@ -1,0 +1,83 @@
+body {
+    font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
+    background-color: #0b0f1a;
+    color: #e2e8f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.container {
+    background-color: #161e2e;
+    padding: 2.5rem;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    width: 90%;
+    max-width: 700px;
+}
+
+h1 {
+    color: #38bdf8;
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 2rem;
+}
+
+.search-box {
+    display: flex;
+    gap: 12px;
+}
+
+input {
+    flex: 1;
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    background-color: #1e293b;
+    color: white;
+    font-size: 1rem;
+}
+
+button {
+    padding: 12px 24px;
+    background-color: #38bdf8;
+    color: #0f172a;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+button:hover {
+    background-color: #0ea5e9;
+}
+
+.hidden { display: none; }
+
+#loader {
+    margin-top: 20px;
+    text-align: center;
+    color: #fbbf24;
+}
+
+.result-area {
+    margin-top: 25px;
+    padding: 20px;
+    background-color: #1e293b;
+    border-left: 5px solid #38bdf8;
+    border-radius: 8px;
+}
+
+.result-header {
+    font-weight: bold;
+    color: #38bdf8;
+    margin-bottom: 10px;
+}
+
+#responseText {
+    line-height: 1.7;
+    white-space: pre-wrap;
+}

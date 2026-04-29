@@ -1,18 +1,43 @@
-from backend.app.services.rag_service import RAGService
+import logging
+from llmops.agents.search_agent import SearchAgent
 
+
+logger = logging.getLogger(__name__)
+
+
+try:
+    agent = SearchAgent()
+    logger.info("SearchAgent initialized successfully in SearchService.")
+except Exception as e:
+    logger.error(f"Failed to initialize SearchAgent: {e}")
+    agent = None
 
 class SearchService:
-
     @staticmethod
     def search(query: str):
         try:
+            
             if not query or not query.strip():
-                return {"error": "Query cannot be empty"}
+                return {"status": "error", "message": "Query cannot be empty"}
 
-            result = RAGService.generate_answer(query)
+            if agent is None:
+                return {"status": "error", "message": "Search Agent not initialized"}
 
-            return result
+            
+            logger.info(f"Service processing query: {query}")
+            result = agent.ask(query)
+
+            
+            return {
+                "status": "success",
+                "query": query,
+                "answer": result
+            }
 
         except Exception as e:
-            print(f"[Search Error]: {e}")
-            return {"error": "Search failed"}
+            logger.error(f"Search failure in SearchService: {e}")
+            return {
+                "status": "error",
+                "message": "Search failed internally",
+                "details": str(e)
+            }

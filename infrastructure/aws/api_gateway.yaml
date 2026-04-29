@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: API Gateway for AWS Search Engine - Aditya Banerjee
+
+Resources:
+  
+  SearchEngineApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: "AWS-Search-Engine-API"
+      Description: "API for AI-powered Cloud Search Engine"
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  
+  SearchResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt SearchEngineApi.RootResourceId
+      PathPart: "search"
+      RestApiId: !Ref SearchEngineApi
+
+ 
+  SearchMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: "NONE" 
+      HttpMethod: "POST"
+      ResourceId: !Ref SearchResource
+      RestApiId: !Ref SearchEngineApi
+      Integration:
+        Type: "AWS_PROXY"
+        IntegrationHttpMethod: "POST"
+        
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SearchAgentLambda.Arn}/invocations"
+
+  
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - SearchMethod
+    Properties:
+      RestApiId: !Ref SearchEngineApi
+
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref ApiDeployment
+      RestApiId: !Ref SearchEngineApi
+      StageName: "prod"
+
+Outputs:
+  ApiUrl:
+    Description: "Public URL for the Search Engine"
+    Value: !Sub "https://${SearchEngineApi}.execute-api.${AWS::Region}.amazonaws.com/prod/search"

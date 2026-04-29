@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware # ১. এটা ইম্পোর্ট কর
 from backend.app.config import Config
 from backend.app.routes import search, upload, health
 
@@ -8,6 +9,15 @@ Config.validate_config()
 app = FastAPI(
     title=Config.APP_NAME,
     version=Config.VERSION
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

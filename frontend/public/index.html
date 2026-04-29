@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banerjee Search AI | Cloud Search Engine</title>
+    <link rel="stylesheet" href="../src/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Cloud Search AI</h1>
+        <div class="search-box">
+            <input type="text" id="queryInput" placeholder="Ask anything about AWS, Cloud, or DevOps...">
+            <button id="searchBtn">Search</button>
+        </div>
+        
+        <div id="loader" class="hidden">Thinking... </div>
+
+        <div id="resultContainer" class="result-area hidden">
+            <div class="result-header">Response:</div>
+            <p id="responseText"></p>
+        </div>
+    </div>
+
+    <script src="../src/api.js"></script>
+    <script src="../src/app.js"></script>
+</body>
+</html>
