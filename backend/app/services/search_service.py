@@ -1,9 +1,7 @@
 import logging
 from llmops.agents.search_agent import SearchAgent
 
-
 logger = logging.getLogger(__name__)
-
 
 try:
     agent = SearchAgent()
@@ -14,20 +12,30 @@ except Exception as e:
 
 class SearchService:
     @staticmethod
-    def search(query: str):
+    def search(query_data: dict):
         try:
+            if not isinstance(query_data, dict):
+                return {"status": "error", "message": "Invalid data format. Expected JSON object."}
             
-            if not query or not query.strip():
+            query = query_data.get("query")
+            
+            if not query or not str(query).strip():
                 return {"status": "error", "message": "Query cannot be empty"}
 
+            global agent
             if agent is None:
-                return {"status": "error", "message": "Search Agent not initialized"}
+                try:
+                    agent = SearchAgent()
+                except Exception as init_error:
+                    logger.error(f"Retry initialization failed: {init_error}")
+                    return {
+                        "status": "error", 
+                        "message": "Search Agent not initialized. Check API Keys and Environment Variables."
+                    }
 
-            
-            logger.info(f"Service processing query: {query}")
+            logger.info(f"LLMOps Service processing query: {query}")
             result = agent.ask(query)
 
-            
             return {
                 "status": "success",
                 "query": query,
