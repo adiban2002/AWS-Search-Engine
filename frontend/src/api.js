@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:8002/api";
+const API_BASE_URL = "http://a434141525ba2496596019ab1218adbb-534990163.ap-south-1.elb.amazonaws.com/api";
 
 async function fetchSearchResults(query) {
     const response = await fetch(`${API_BASE_URL}/search/`, {

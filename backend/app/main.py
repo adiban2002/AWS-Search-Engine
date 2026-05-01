@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware # ১. এটা ইম্পোর্ট কর
+from fastapi.middleware.cors import CORSMiddleware 
 from backend.app.config import Config
 from backend.app.routes import search, upload, health
 
